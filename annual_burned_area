@@ -1,0 +1,253 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var forpal = {"opacity":1,"bands":["treecover2000"],"palette":["2a7a3f"]},
+    firepal = {"opacity":1,"bands":["BurnDate"],"palette":["ff722f"]},
+    burnareapal = {"opacity":1,"bands":["BurnDate"],"palette":["ff16b7"]},
+    chart = 
+    /* color: #3e38d6 */
+    /* shown: false */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[14.161694434200628, 6.726743464093561],
+          [14.161694434200628, -4.984847719333433],
+          [25.323803809200626, -4.984847719333433],
+          [25.323803809200626, 6.726743464093561]]], null, false),
+    burnyear_param = {"opacity":1,"bands":["BurnDate"],"min":2,"max":20,"palette":["e0ccff","9a16ff"]},
+    geometry2 = 
+    /* color: #d63000 */
+    /* shown: false */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[16.796585862910465, 3.182508884230637],
+          [16.796585862910465, -0.8587899581616063],
+          [22.070023362910465, -0.8587899581616063],
+          [22.070023362910465, 3.182508884230637]]], null, false),
+    forest2015 = ee.Image("projects/cafi_fao_congo/classification/FNF_2015"),
+    fnfparam = {"opacity":1,"bands":["remapped"],"min":1,"max":3,"palette":["305c15","f4ffd4","1714ff"]},
+    cci_burnedarea = ee.ImageCollection("ESA/CCI/FireCCI/5_1"),
+    modisBA = ee.ImageCollection("MODIS/061/MCD64A1"),
+    burnparam = {"opacity":1,"bands":["BurnDate"],"min":16,"max":22,"palette":["e0ccff","9a16ff"]},
+    aoi = ee.FeatureCollection("projects/cafi_fao_congo/aoi/aoi_cafi_merge"),
+    cafi = ee.FeatureCollection("projects/cafi_fao_congo/aoi/congo_basin_lsib");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+//forest mask
+Map.addLayer(forest2015, fnfparam, 'Forest 2015')
+var area = aoi.geometry().bounds()
+//enter country code: COD, COG, CAF, CAM, GAB, ECG
+var area = cafi.filter(ee.Filter.eq('CODE','ECG'))
+
+Map.addLayer(area,{}, 'AOI',false)
+var forest = forest2015.eq(1)
+// Collect data 
+print(modisdata, "modis burned area");
+var modisdata = modisBA
+//QA Band selection by bits
+//MODIS QA Band selection by bits
+//Bit 0: Land/water
+//0: Water grid cell
+//1: Land grid cell
+
+//Bit 1: Valid data flag. A value of 1 indicates that there was sufficient valid data in the reflectance time series for the grid cell to be processed. (NB Water grid cells will always have this bit clear.)
+//0: Insufficient valid data
+//1: Sufficient valid data
+
+//Bit 2: Shortened mapping period. This flag indicates that the period of reliable mapping does not encompass the full one-month product period, i.e., burns could not be reliably mapped over the full calendar month.
+//0: Mapping period not shortened
+//1: Mapping period shortened
+
+//var maskQA = (function(image){
+//  var qa = image.select('QA');
+
+// Bits 0,1,2
+//var LandBitMask = ee.Number(2).pow(0).int();
+//var ValidBitMask = ee.Number(2).pow(1).int();
+//var PeriodBitMask = ee.Number(2).pow(2).int();
+
+// Land flag Data Flag set to 1 Period set to zero
+//var mask = qa.bitwiseAnd(LandBitMask).eq(1).and(
+//           qa.bitwiseAnd(ValidBitMask).eq(1).and(
+//             qa.bitwiseAnd(PeriodBitMask).eq(0)));
+
+//var validDates = image.select('BurnDate').gt(0).and(image.select('BurnDate').lt(367));
+
+// Return the masked and scaled data.
+//  return image.updateMask(validDates).updateMask(mask)
+//  return image.select('Uncertainty');
+//  return img.addBands(image.metadata('system:time_start'));//.addBands('burned');
+//});
+  
+
+//var modisburnqa=modisburn.map(maskQA)
+//print(modisburnqa, 'masked')
+//Map.addLayer(modisburnqa)
+
+//Another function for  QA fires
+var allFires = (function(img) {
+  var burndate = img.select('BurnDate');
+  var goodQA = img.select("QA").lte(4); // keep QA values 1-4 (5 is detection over agricultural areas)
+  var validDates = burndate.gt(0).and(burndate.lt(367)); // outside of this range is snow/water/error
+  return img.updateMask(validDates.and(goodQA)).gt(0).and(img.select('Uncertainty').gt(0).and(img.select('Uncertainty').lte(10)))
+  return img.addBands(forest2015.metadata('system:time_start'));//.addBands('burned');
+});
+
+
+//recalculate burned area every year
+
+
+var burnedArea14 = modisdata.filterDate(2014 + '-01-01', 2014 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea14 = burnedArea14.min().updateMask(forest);
+Map.addLayer(burnedArea14, burnareapal, 'burned area 2014', false);
+var newburned14 = burnedArea14.unmask();
+var newburned14 = newburned14.eq(1).updateMask(forest2015).multiply(14);
+Map.addLayer(newburned14, {}, 'new burned area 2014', false);
+var forestleft14 = forest2015.subtract(newburned14);
+var forestleft14 =forestleft14.updateMask(forestleft14);
+
+var burnedArea15 = modisdata.filterDate(2015 + '-01-01', 2015 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea15 = burnedArea15.min().updateMask(forestleft14);
+Map.addLayer(burnedArea15, burnareapal, 'burned area 2015', false);
+var newburned15 = burnedArea15.unmask();
+var newburned15 = newburned15.eq(1).updateMask(forest2015).multiply(15);
+Map.addLayer(newburned15, {}, 'new burned area 2015', false);
+var forestleft15 = forestleft14.subtract(newburned15);
+var forestleft15 =forestleft15.updateMask(forestleft15);
+
+var burnedArea16 = modisdata.filterDate(2016 + '-01-01', 2016 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea16 = burnedArea16.min().updateMask(forestleft15);
+Map.addLayer(burnedArea16, burnareapal, 'burned area 2016', false);
+var newburned16 = burnedArea16.unmask();
+var newburned16 = newburned16.eq(1).updateMask(forestleft15).multiply(16);
+Map.addLayer(newburned16, {}, 'new burned area 2016', false);
+var forestleft16 = forestleft15.subtract(newburned16);
+var forestleft16 =forestleft16.updateMask(forestleft16);
+
+var burnedArea17 = modisdata.filterDate(2017 + '-01-01', 2017 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea17 = burnedArea17.min().updateMask(forestleft16);
+Map.addLayer(burnedArea17, burnareapal, 'burned area 2017', false);
+var newburned17 = burnedArea17.unmask();
+var newburned17 = newburned17.eq(1).and(newburned16.eq(0)).updateMask(forestleft16).multiply(17);
+Map.addLayer(newburned17, {}, 'new burned area 2017', false);
+var forestleft17 = forestleft16.subtract(newburned17);
+var forestleft17 =forestleft17.updateMask(forestleft17);
+
+//Map.addLayer(forestleft17, {}, 'forest left 2017')
+var burnedArea18 = modisdata.filterDate(2018 + '-01-01', 2018 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea18 = burnedArea18.min().updateMask(forestleft17);
+Map.addLayer(burnedArea18, burnareapal, 'burned area 2018', false);
+var newburned18 = burnedArea18.unmask();
+var newburned18 = newburned18.eq(1).and(newburned17.eq(0)).updateMask(forestleft17).multiply(18);
+Map.addLayer(newburned18, {}, 'new burned area 2018', false);
+var forestleft18 = forestleft17.subtract(newburned18);
+var forestleft18 = forestleft18.updateMask(forestleft18);
+
+var burnedArea19 = modisdata.filterDate(2019 + '-01-01', 2019 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea19 = burnedArea19.min().updateMask(forestleft18);
+Map.addLayer(burnedArea19, burnareapal, 'burned area 2019', false);
+var newburned19 = burnedArea19.unmask();
+var newburned19 = newburned19.eq(1).and(newburned18.eq(0)).updateMask(forestleft18).multiply(19);
+Map.addLayer(newburned19, {}, 'new burned area 2019', false);
+var forestleft19 = forestleft18.subtract(newburned19);
+var forestleft19 = forestleft19.updateMask(forestleft19);
+
+var burnedArea20 = modisdata.filterDate(2020 + '-01-01', 2020 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea20 = burnedArea20.min().updateMask(forestleft19);
+Map.addLayer(burnedArea20, burnareapal, 'burned area 2020', false);
+var newburned20 = burnedArea20.unmask();
+var newburned20 = newburned20.eq(1).and(newburned19.eq(0)).updateMask(forestleft19).multiply(20);
+Map.addLayer(newburned20, {}, 'new burned area 2020', false);
+var forestleft20 = forestleft19.subtract(newburned20);
+var forestleft20 = forestleft20.updateMask(forestleft20);
+
+var burnedArea21 = modisdata.filterDate(2021 + '-01-01', 2021 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea21 = burnedArea21.min().updateMask(forestleft20);
+Map.addLayer(burnedArea21, burnareapal, 'burned area 2021', false);
+var newburned21 = burnedArea21.unmask();
+var newburned21 = newburned21.eq(1).and(newburned20.eq(0)).updateMask(forestleft20).multiply(21);
+Map.addLayer(newburned21, {}, 'new burned area 2021', false);
+var forestleft21 = forestleft20.subtract(newburned21);
+var forestleft21 = forestleft21.updateMask(forestleft21);
+
+var burnedArea22 = modisdata.filterDate(2022 + '-01-01', 2022 + '-12-31').map(allFires).select('BurnDate');
+var burnedArea22 = burnedArea22.min().updateMask(forestleft21);
+Map.addLayer(burnedArea22, burnareapal, 'burned area 2021', false);
+var newburned22 = burnedArea22.unmask();
+var newburned22 = newburned22.eq(1).and(newburned21.eq(0)).updateMask(forestleft21).multiply(22);
+Map.addLayer(newburned22, {}, 'new burned area 2022', false);
+var forestleft22 = forestleft21.subtract(newburned22);
+var forestleft22 = forestleft22.updateMask(forestleft22);
+
+var newBurnedYear = ee.ImageCollection(newburned16.unmask()
+.add((newburned17).unmask())
+.add((newburned18).unmask())
+.add((newburned19).unmask())
+.add((newburned20).unmask())
+.add((newburned21).unmask())
+.add((newburned22).unmask()));
+
+print(newBurnedYear, 'burned area year')
+var burnyear = ee.Image(newBurnedYear.max()).updateMask(forest)
+var burnyear = burnyear.updateMask(burnyear)
+Map.addLayer(burnyear, burnparam, 'all years')
+
+var aoi = cafi
+//var aoi = area.bounds()
+//var aoi = cafi.filter("ADM0_NAME == 'Central African Republic'")
+//Map.addLayer(aoi)
+
+Export.image.toCloudStorage({
+image: burnyear.clip(aoi),
+description:'burned_area_2015_2022_cloud',
+bucket: 'gee-bucket-fao',
+region:aoi,
+scale:500,
+maxPixels: 1000000000000});
+
+Export.image.toAsset({
+  image:burnyear,
+  region:aoi,
+  description:'burned_area_2015_2022_asset',
+  scale:500
+})
+
+//make a chart to see what's up
+var fireAreaImage = burnyear.multiply(ee.Image.pixelArea());
+var fireByYear = fireAreaImage.addBands(burnyear).reduceRegion({
+  reducer: ee.Reducer.sum().group({
+    groupField: 1
+    }),
+  geometry: area,
+  scale: 500,
+  maxPixels: 1e9
+});
+print(fireByYear);
+
+
+var statsFormatted = ee.List(fireByYear.get('groups'))
+  .map(function(el) {
+    var d = ee.Dictionary(el);
+    return [ee.Number(d.get('group')).format("20%02d"), d.get('sum')];
+  });
+var statsDictionary = ee.Dictionary(statsFormatted.flatten());
+print(statsDictionary);
+
+var chart = ui.Chart.array.values({
+  array: statsDictionary.values(),
+  axis: 0,
+  xLabels: statsDictionary.keys()
+}).setChartType('ColumnChart')
+  .setOptions({
+    title: 'Yearly burned forest',
+    hAxis: {title: 'Year', format: '####'},
+    vAxis: {title: 'Area (square meters)'},
+    legend: { position: "none" },
+    lineWidth: 1,
+    pointSize: 3
+  });
+print(chart);
