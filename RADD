@@ -3,9 +3,12 @@ var cafi = ee.FeatureCollection("projects/cafi_fao_congo/aoi/aoi_cafi"),
     FNF2015 = ee.Image("projects/cafi_fao_congo/classification/FNF_2015"),
     lsib = ee.FeatureCollection("projects/cafi_fao_congo/aoi/congo_basin_lsib");
 /***** End of imports. If edited, may not auto-convert in the playground. *****/
+
 //Accessing RADD forest disturbance alert (Reiche et al.,2021)
 //Website: http://radd-alert.wur.nl
 //Citation: Reiche et al. (2021): Forest disturbance alerts for the Congo Basin using Sentinel-1, ERL.
+
+//add study area
 Map.addLayer(lsib)
 //---------------------------
 //Access RADD image collection
@@ -13,15 +16,12 @@ Map.addLayer(lsib)
 var radd = ee.ImageCollection('projects/radar-wur/raddalert/v1');
 var geography = 'africa' // 'africa' (africa), 'asia' (asia & pacific)
 var area = lsib.filter(ee.Filter.eq('CODE','COG'))
-//var area = cafi.filter(ee.filter.eq('ADMO_NAME','DRC'))
 //print('RADD image collection:', radd);
 //----------------------------------------
 //Forest baseline 
-//Primary humid tropical forest mask 2001 from Turubanova et al (2018) with annual (Africa: 2001-2018; Asia: 2001 - 2019) forest loss (Hansen et al 2013) and mangroves (Bunting et al 2018) removed
+
 //----------------------------------------
-var forest_baseline = ee.Image(radd.filterMetadata('layer','contains','forest_baseline')
-                            .filterMetadata('geography','contains',geography).first())
-print('Forest baseline '+ geography + ':',  forest_baseline)
+var forest_baseline = FNF2015
 Map.addLayer(forest_baseline, {palette:['black'], opacity: 0.3},'Forest baseline')
 //-----------------
 //Latest RADD alert
