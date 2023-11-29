@@ -7,4 +7,6 @@ For more information on the CAFI Drivers data and project, visit [the website](h
 
 The SEPAL documentation on the worfklow is available [here](https://docs.sepal.io/en/latest/workflows/drivers.html)
 
+This study is piloted in 6 countries in Central Africa: 
+![CAFI study area](/images/study_area.png)
 
