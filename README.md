@@ -8,4 +8,4 @@ For more information on the CAFI Drivers data and project, visit https://www.fao
 The SEPAL documentation on the worfklow is available here (in development): https://docs.sepal.io/en/latest/workflows/drivers.html
 
 You can explore the data from the project in this interactive map:
-<iframe src="[https://faocongo.users.earthengine.app/view/cafi-data](https://faocongo.users.earthengine.app/view/cafi-data)" width="600" height="450" frameborder="0" style="border:0" allowfullscreen></iframe>
+https://faocongo.users.earthengine.app/view/cafi-data
