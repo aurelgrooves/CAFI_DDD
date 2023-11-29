@@ -1,4 +1,4 @@
-# CAFI_DDD
+# CAFI/FAO Deforestation and Degradation Drivers Project CAFI DDD
 deforestation and degradation monitoring in Central Africa
 
 These scripts are used to support the assessment of direct drivers of deforestation and degradation in Central Africa. 
