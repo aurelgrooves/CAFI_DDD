@@ -25,3 +25,4 @@ esbae_05e_supervised_CAFI_all_points: performs a supervised classification of ch
 
 esbae_06_calculate_areas: calculate areas based on all points, and estimates the margin of error using only validated points. 
 
+
