@@ -1,0 +1,133 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var table = ee.FeatureCollection("FAO/GAUL_SIMPLIFIED_500m/2015/level0"),
+    cafi = ee.FeatureCollection("projects/cafi_fao_congo/aoi/cafi_countries_buffer_simple");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var ISO = 'EQG'
+var aoi = cafi.filter(ee.Filter.eq('ISO', ISO))
+Map.addLayer(aoi) 
+var sarLib = require('users/andreasvollrath/radar:sarLib.js');
+var scanSarLib = require('users/andreasvollrath/radar:scanSarLib.js');
+var mtLib = require('users/andreasvollrath/radar:s1MtLib3.0.js');
+var als_clt = scanSarLib.createAlosScansarCollection({
+  geometry: aoi,
+  dates: ['2023-01-01', '2023-12-31'],
+  // speckle filter options
+  filterOptions: {
+    // available filters: 'boxcar', 'refinedLee', 'leeSigma', 'SNIC' or false
+    'filter': false,         
+    // filter radius: applies to all filters, except SNIC
+    'radius': 7,     
+    // radius units: applies to all filters, except SNIC
+    'units': 'pixels',  
+    // number of multi-temporal images: applies to multi-temporal filtering only
+    'nr_of_images': 5,
+    // applies to leeSigma only
+    'compactness': 0.15,
+    // for radd preparations
+    'addRatio': false
+  }, 
+  // very compute instense, only for exports or single images
+  mtFilter: false, 
+  addRatio: true,
+  addNormalizedRatio: true,
+  toDb: true,
+  maskInvalids: false,
+  maskLayShad: false,
+  //stdDevs: 3
+});
+var image = als_clt.first()
+print(image)
+/*
+var als_clt2 = scanSarLib.createAlosScansarCollection({
+  geometry: geometry,
+  dates: ['2021-01-01', '2021-12-31'],
+  // speckle filter options
+  filterOptions: {
+    // available filters: 'boxcar', 'refinedLee', 'leeSigma', 'SNIC' or false
+    'filter': false,         
+    // filter radius: applies to all filters, except SNIC
+    'radius': 7,     
+    // radius units: applies to all filters, except SNIC
+    'units': 'pixels',  
+    // number of multi-temporal images: applies to multi-temporal filtering only
+    'nr_of_images': 25,
+    // applies to leeSigma only
+    'compactness': 0.15,
+    // for radd preparations
+    'addRatio': true
+  }, 
+  // very compute instense, only for exports or single images
+  mtFilter: false, 
+  addRatio: true,
+  addNormalizedRatio: true,
+  toDb: true,
+  maskInvalids: true,
+  maskLayShad: true,
+  //stdDevs: 3
+})
+//Map.centerObject(als_clt.first().geometry())
+Map.addLayer(als_clt.first().select('HH'), {min: -25, max: 0})
+Map.addLayer(als_clt.first().select('MSK'), {min: 0, max: 5})
+Map.addLayer(als_clt.first().select(['HH', 'HV', 'HH_HV_ratio']), {min: [-25, -30, 1], max: [0, -5, 5]})
+Map.addLayer(als_clt2.first().select(['HH', 'HV', 'HH_HV_ratio']), {min: [-25, -30, 1], max: [0, -5, 5]})
+*/
+Map.addLayer(als_clt.first().select('HH_HV_ND_ratio'), {min: -1, max: 1, palette: ['brown', 'yellow', 'lightgreen', 'green', 'darkgreen']})
+//----------------------------------------------------
+// based on a pre-processed Sentinel-1 image collection
+// we apply the multi-temporal stats calculation
+var tScan = mtLib.createTimescan({
+  collection: als_clt, // a preprocessed S1 collection
+  singleOrbit: false,
+  geometry: aoi,
+  basic: true, // mean, median, min, max, stddev
+  percentiles: [5, 95], // add percentiles
+  tsRatios: true, // add timescan ratios of the median (power and db)
+  cv: true, // coefficent of variance for both polarizations, and NDCV
+  daysFromMinToMax: true, //days between min and max with max coming after min
+  harmonics: true  // harmonics
+});
+addLayer(tScan, 'HH_median,HV_median,HV_stdDev', true);
+addLayer(tScan, 'HH_p95,HV_p5,HV_stdDev', true);
+addLayer(tScan, 'HH_max,HV_min,NDCV', true);
+addLayer(ALOS_cafi,'HH_median,HV_median,HV_stdDev', true)
+function addLayer(image, bands, show) {
+  var ranges = {
+    HH_min:	[-25, 4],
+    HH_p5:	[-25, 4],
+    HH_mean: [-18, 6],
+    HH_median: [-18, 6],
+    HH_max: [-17, 10],
+    HH_p95: [-17, 10],
+    HH_stdDev: [0, 5],
+    HH_CV: [-0.5, 0],
+    HV_min: [-34, 4],
+    HV_p5: [-34, 4],
+    HV_mean: [-27,0],
+    HV_median: [-27,0],
+    HV_max: [-26, 2],
+    HV_p95: [-26, 2],
+    HV_stdDev: [0, 6],
+    HV_CV: [-0.5, 0],
+    VV_median_VH_median_nat: [2, 16],
+    VV_median_VH_median_db: [2, 16],
+    NDCV: [-1, 1],
+    days: [1, 200]
+  };
+  
+  var min = bands.split(',').map(function (band) { return ranges[band][0] });
+  var max = bands.split(',').map(function (band) { return ranges[band][1] });
+  Map.addLayer(image, {bands: bands, min: min, max: max}, bands, show);
+}
+//----------------------------------------------------
+Export.image.toAsset({
+  image: tScan.select([
+    'HH_median', 'HH_min', 'HH_stdDev', 'HH_CV',
+    'HV_median', 'HV_min', 'HV_stdDev', 'HV_CV',
+    'NDCV', 'HV_phase', 'HH_phase', 'HH_amplitude','HV_amplitude'
+    ]),
+  assetId: ISO+'_ALOS_2023',
+  description: 'ALOS_mosaic',
+  scale: 30,
+  maxPixels: 1e13,
+  region: aoi
+})

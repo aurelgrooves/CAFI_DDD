@@ -1,0 +1,71 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var image = ee.Image("projects/cafi_fao_congo/imagery/alos_mosaic_2015_quegan_rfdi_masked_texture"),
+    geometry = 
+    /* color: #d63000 */
+    /* shown: false */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[15.901680279499105, 1.6438036345624252],
+          [15.901680279499105, -2.573854702154139],
+          [21.065254498249107, -2.573854702154139],
+          [21.065254498249107, 1.6438036345624252]]], null, false),
+    cafi = ee.FeatureCollection("projects/cafi_fao_congo/aoi/cafi_countries_buffer_simple"),
+    alos23 = ee.ImageCollection("projects/cafi_fao_congo/imagery/ALOS_2023");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var s1 = ee.ImageCollection('projects/cafi_fao_congo/imagery/S1_timescan_2022').mosaic()
+var alos = alos23.mosaic()
+//print(s1.select('VV_median').float().glcmTexture())
+var ISO = 'CMR'
+var aoi = cafi.filter(ee.Filter.eq('ISO', ISO))
+var sarLib = require('users/andreasvollrath/radar:sarLib.js')
+var alos_natural = sarLib.toNatural(alos.select(['HH_median', 'HV_median'], ['HH', 'HV']))
+var alos_text = alos_natural.multiply(10000).int16().glcmTexture(5).int()
+var alos_HH_idm = alos_text.select(['HH_idm']).multiply(100000).int16()
+var alos_HV_idm = alos_text.select(['HV_idm']).multiply(100000).int16()
+//Map.addLayer(alos_HH_idm)
+//print(alos_text)
+Map.addLayer(alos_text
+  .select(['HH_var', 'HH_diss', 'HH_idm']), 
+  {min: [0, 0, 0], max: [2000000, 1000, 1]},
+  'ALOS HH Texture'
+)
+Map.addLayer(alos_text
+  .select(['HV_var', 'HV_diss', 'HV_idm']), 
+  {min: [0, 0, 0], max: [1000000, 150, 0.5]},
+  'ALOS HV Texture'
+)
+// calculate the min and max value of an image
+var minMax = alos_text.reduceRegion({
+  reducer: ee.Reducer.minMax(),
+  geometry: geometry,
+  scale: 500,
+  maxPixels: 10e9,
+  bestEffort: true
+  // tileScale: 16
+}); 
+// use unit scale to normalize the pixel values
+var unitScale = ee.ImageCollection.fromImages(
+  image.bandNames().map(function(name){
+    name = ee.String(name);
+    var band = image.select(name);
+    return band.unitScale(ee.Number(minMax.get(name.cat('_min'))), ee.Number(minMax.get(name.cat('_max'))))
+                // eventually multiply by 100 to get range 0-100
+                .multiply(100);
+})).toBands().rename(image.bandNames());
+//Map.addLayer(unitScale.clip(geometry), {min: 0, max: 100, bands: ['B4', 'B3', 'B2']}, 'unitscaled')
+var image_to_export = alos_text.select(['HH_var', 'HH_diss']).addBands(alos_HH_idm).addBands(alos_text.select(['HV_var', 'HV_diss'])).addBands(alos_HV_idm)
+Map.addLayer(image_to_export,{},'image to export')
+var bands = image_to_export.bandNames()
+print(bands,'bands')
+Export.image.toAsset({
+  image:alos_text.select(['HH_var', 'HH_diss', 'HH_idm','HV_var', 'HV_diss', 'HV_idm']), 
+  description: ISO+ '_ALOS_2023_texture', 
+  assetId: ISO+ '_ALOS_2023_texture', 
+  region: aoi, 
+  scale:30,
+  maxPixels:1e13
+})
