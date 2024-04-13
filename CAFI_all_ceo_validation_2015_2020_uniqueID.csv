@@ -1,4 +1,4 @@
-OID,PLOTID,CEO_PLOTID,LON,LAT,ISO,CEO_Ref_Code,Ref_FNF,Ref_LCover,Ref_Change_Type,Ref_Year,countDrivers,InfraR,Urb,ArtAg,IndAg,ArtFor,IndFor,ArtMin,IndMin,Other,Source,Ref_Change_Year,Change_Bin,UniqueID
+OID,PLOTID,CEO_PLOTID,LON,LAT,ISO,CEO_Ref_Code,Ref_FNF,Ref_LCover,Ref_Change_Type_1520,Ref_Year,countDrivers,InfraR,Urb,ArtAg,IndAg,ArtFor,IndFor,ArtMin,IndMin,Other,Source,Ref_Change_Year,Change_Bin,UniqueID
 305,171,NA,24.04309417,6.731301001,CAF,12,0,12,NF,NA,0,0,0,0,0,0,0,0,0,0,ceo,NF,0,306
 306,140,NA,18.70467593,8.068802628,CAF,12,0,12,NF,NA,0,0,0,0,0,0,0,0,0,0,ceo,NF,0,307
 307,173,NA,13.50208296,6.59251129,CMR,12,0,12,NF,NA,0,0,0,0,0,0,0,0,0,0,ceo,NF,0,308
