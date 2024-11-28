@@ -1,3 +1,5 @@
+![banner](/images/header.png)
+
 # CAFI/FAO Deforestation and Degradation Drivers Project CAFI DDD
 deforestation and degradation monitoring in Central Africa
 
